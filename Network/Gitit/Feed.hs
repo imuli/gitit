@@ -40,7 +40,7 @@ import Text.Atom.Feed (nullEntry, nullFeed, nullLink, nullPerson,
          Date, Entry(..), Feed(..), Link(linkRel), Generator(..),
          Person(personName), EntryContent(..), TextContent(TextString))
 import Text.Atom.Feed.Export (xmlFeed)
-import Text.XML.Light (ppTopElement)
+import Text.XML.Light (ppTopElement, showContent, Content(..), Element(..), blank_element, QName(..), blank_name, CData(..), blank_cdata)
 import Data.Version (showVersion)
 import Paths_gitit (version)
 
@@ -119,27 +119,33 @@ revisionToEntry :: String -> (Revision, [(FilePath, [Diff [String]])]) -> Entry
 revisionToEntry home (Revision{ revId = rid, revDateTime = rdt,
                                revAuthor = ra, revDescription = rd,
                                revChanges = rv}, diffs) =
-  baseEntry{ entryContent = Just $ HTMLContent $ intercalate "<hr>" $ map diffToSummary diffs
+  baseEntry{ entryContent = Just $ HTMLContent $ concat $ map showContent $ map diffFile diffs
            , entryAuthors = [authorToPerson ra], entryLinks = [ln] }
    where baseEntry = nullEntry url title (formatFeedTime rdt)
          url = home ++ escape (extract $ head rv) ++ "?revision=" ++ rid
          ln = (nullLink url) {linkRel = Just (Left "alternate")}
          title = TextString $ (head $ lines rd) ++ " - " ++ (intercalate ", " $ map show rv)
 
-diffToSummary :: (FilePath, [Diff [String]]) -> String
-diffToSummary (fp, d) =
-    header ++ (concat $ concat $ map (map (enTag "p") . diffLines) d)
+diffFile :: (FilePath, [Diff [String]]) -> Content
+diffFile (fp, d) =
+    enTag "div" $ header : text
   where
-    header = "<h1>" ++ fp ++ "</h1>"
+    header = enTag1 "h1" $ enText fp
+    text = map (enTag1 "p") $ concat $ map diffLines d
 
--- FIXME: inline html leaks out
-diffLines :: Diff [String] -> [String]
-diffLines (First x) = map (enTag "s") $ x
-diffLines (Second x) = map (enTag "b") $ x
-diffLines (Both x _) = x
+diffLines :: Diff [String] -> [Content]
+diffLines (First x) = map (enTag1 "s" . enText) x
+diffLines (Second x) = map (enTag1 "b" . enText) x
+diffLines (Both x _) = map enText x
 
-enTag :: String -> String -> String
-enTag tag content = "<" ++ tag ++ ">" ++ content ++ "</" ++ tag ++ ">"
+enTag :: String -> [Content] -> Content
+enTag tag content = Elem blank_element{ elName=blank_name{qName=tag}
+				      , elContent=content
+				      }
+enTag1 :: String -> Content -> Content
+enTag1 tag content = enTag tag [content]
+enText :: String -> Content
+enText content = Text blank_cdata{cdData=content}
 
 -- gitit is set up not to reveal registration emails
 authorToPerson :: Author -> Person
