@@ -124,7 +124,7 @@ revisionToEntry home (Revision{ revId = rid, revDateTime = rdt,
    where baseEntry = nullEntry url title (formatFeedTime rdt)
          url = home ++ escape (extract $ head rv) ++ "?revision=" ++ rid
          ln = (nullLink url) {linkRel = Just (Left "alternate")}
-         title = TextString $ (head $ lines rd) ++ " - " ++ (intercalate ", " $ map show rv)
+         title = TextString $ (takeWhile ('\n' /=) rd) ++ " - " ++ (intercalate ", " $ map show rv)
 
 diffFile :: (FilePath, [Diff [String]]) -> Content
 diffFile (fp, d) =
