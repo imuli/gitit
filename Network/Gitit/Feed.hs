@@ -85,9 +85,9 @@ changeLog days a mbPath now' = do
 getDiffs :: FileStore -> Revision -> IO [(FilePath, [Diff [String]])]
 getDiffs fs Revision{ revId = to, revDateTime = rd, revChanges = rv } = do
   revPair <- history fs [] (TimeRange Nothing $ Just rd) (Just 2)
-  let from = case listToMaybe $ tail revPair of
-                  Just Revision{revId = rev} -> Just rev
-                  Nothing -> Nothing
+  let from = if length revPair >= 2
+                then Just $ revId $ revPair !! 1
+                else Nothing
   diffs <- mapM (getDiff fs from (Just to)) rv
   return $ map filterPages $ zip (map getFP rv) diffs
   where getFP (Added fp) = fp
